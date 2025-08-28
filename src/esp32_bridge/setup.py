@@ -13,6 +13,11 @@ setup(
 
         ('share/' + package_name, ['package.xml']),
         ('share/' + package_name + '/launch', ['launch/esp32_bringup.launch.py']),
+        ('share/' + package_name + '/launch', ['launch/imu_yaw.launch.py']),
+        ('share/' + package_name + '/launch', ['launch/esp32_pwm_initial.launch.py']),
+        ('share/' + package_name + '/launch', ['launch/esp32_better_pid.launch.py']),
+
+
 
     ],
     install_requires=['setuptools'],
@@ -25,7 +30,14 @@ setup(
     entry_points={
         'console_scripts': [
                         'esp32_teleop_bridge = esp32_bridge.esp32_teleop_bridge:main',
+                        'state_consensus_node = esp32_bridge.state_consensus_node:main',
+                        'pub_des_vel_node = esp32_bridge.pub_des_vel_node:main',
+                        'esp32_pwm_test = esp32_bridge.esp32_pwm_test:main',
+                        'esp32_better_pid = esp32_bridge.esp32_better_pid:main',
+                        'test_joy_node = esp32_bridge.joy_flip_test:main',
 
         ],
     },
 )
+
+

@@ -6,15 +6,14 @@ from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
 
 def generate_launch_description():
-    #joy_params=os.path.join(get_package_share_directory('esp32_bridge'),'config','joystick.yaml')
-    # Declare the remapping destination as a launch argument
 
     esp32_teleop=Node(
             package='esp32_bridge',
-            executable='esp32_teleop_bridge',
+            executable='esp32_better_pid',
             name='esp32_bridge',
             output='screen',
         )
+
 
 
     joy_node=Node(
@@ -30,12 +29,12 @@ def generate_launch_description():
         #parameters=[joy_params],
         parameters=[{
             'axis_linear': {'x': 1},
-            'scale_linear': {'x': 0.15},
-            'scale_linear_turbo': {'x': 0.3},
+            'scale_linear': {'x': 0.35},
+            'scale_linear_turbo': {'x': 0.7},
 
             'axis_angular': {'yaw': 0},
-            'scale_angular': {'yaw': 0.4},
-            'scale_angular_turbo': {'yaw': 0.8},
+            'scale_angular': {'yaw': 0.7},
+            'scale_angular_turbo': {'yaw': 1.4},
 
             'enable_button': 4,
             'enable_turbo_button': 5,
@@ -44,8 +43,12 @@ def generate_launch_description():
     )
 
 
+
+
     return LaunchDescription([
         esp32_teleop,
         joy_node,
         teleop_node
     ])
+
+
