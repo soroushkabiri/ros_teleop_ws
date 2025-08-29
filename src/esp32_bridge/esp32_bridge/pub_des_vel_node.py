@@ -132,21 +132,28 @@ class XHatToCmdNode(Node):
         dt = now - self.last_time
         self.last_time = now
 
+        # Threshold in radians (5 degrees)
+        threshold = 5 * math.pi / 180  
+        
+        if abs(diff) > threshold:
+            self.integral_error_F1 += diff * dt
 
-        self.integral_error_F1 += diff * dt
+            # Prevent integral windup
+            self.integral_error_F1 = max(-max_integral, min(max_integral, self.integral_error_F1))
 
-        # Optional: prevent integral windup
-        #max_integral = 10.0
-        self.integral_error_F1 = max(-max_integral, min(max_integral, self.integral_error_F1))
+            self.get_logger().info(f"p_error: {kp*diff:.3f}, i_error: {ki*self.integral_error_F1:.3f}")
 
-        self.get_logger().info(f"p_error : {kp*diff:.3f} , i-error: {ki*self.integral_error_F1:.3f} ")
+            angular_z = kp * diff + ki * self.integral_error_F1
+            # Limit max rotation speed
+            max_speed = 2.0
+            angular_z = max(-max_speed, min(max_speed, angular_z))
 
-        angular_z = kp * diff + ki * self.integral_error_F1
-        # Optional: Limit maximum speed to avoid excessive rotation
-        max_speed = 2.0
-        angular_z = max(-max_speed, min(max_speed, angular_z))
+            return -angular_z
+        else:
+            # Small error → no angular velocity
+            self.get_logger().info("Orientation error < 5°, no rotation command.")
+            return 0.0
 
-        return -angular_z  # negative because positive diff means need to rotate negative direction
 
 #    def update_plot(self):
 #        self.ax.clear()

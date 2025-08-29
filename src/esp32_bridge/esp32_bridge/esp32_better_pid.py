@@ -38,8 +38,8 @@ class ESP32Bridge(Node):
         self.create_subscription(Float32MultiArray, '/set_pwm', self.pwm_callback, 10)
 
     def cmd_vel_callback_F2(self, msg):
-        linear = max(min(msg.linear.x, 0.7), -0.7)
-        angular = max(min(msg.angular.z, 1.4), -1.4)
+        linear = max(min(msg.linear.x, 0.6), -0.6)
+        angular = max(min(msg.angular.z, 1.2), -1.2)
 
         try:
             params = {

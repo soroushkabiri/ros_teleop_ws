@@ -29,12 +29,12 @@ def generate_launch_description():
         #parameters=[joy_params],
         parameters=[{
             'axis_linear': {'x': 1},
-            'scale_linear': {'x': 0.35},
-            'scale_linear_turbo': {'x': 0.7},
+            'scale_linear': {'x': 0.25},
+            'scale_linear_turbo': {'x': 0.5},
 
             'axis_angular': {'yaw': 0},
-            'scale_angular': {'yaw': 0.7},
-            'scale_angular_turbo': {'yaw': 1.4},
+            'scale_angular': {'yaw': 0.6},
+            'scale_angular_turbo': {'yaw': 1.2},
 
             'enable_button': 4,
             'enable_turbo_button': 5,

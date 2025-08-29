@@ -17,15 +17,26 @@ class ESP32Bridge(Node):
         super().__init__('esp32_bridge')
         
         # Default PID values
-        self.default_kp = 500
-        self.default_ki = 0
-        self.default_kd = 0.1
+        self.default_kp = 400.0
+        self.default_ki = 100.0
+        self.default_kd = 50.0
+
+
+        self.def_initial_pr_L = 0.0
+        self.def_initial_pl_L = 0.0
+        self.def_initial_pr_F1 = 0.0
+        self.def_initial_pl_F1 = 0.0
 
         # Subscribe to /cmd_vel for leader
         self.create_subscription(Twist, '/cmd_vel', self.cmd_vel_callback_L, 10)
         
         # Subscribe to /cmd_vel_des for follower 1
         self.create_subscription(Twist, '/robot0_1/cmd_vel_des', self.cmd_vel_callback_F1, 10)
+
+
+        # Subscribe to /set_pwm_params
+        self.create_subscription(Float32MultiArray, '/set_pwm', self.pwm_callback, 10)
+
 
         # Subscribe to /set_pid_params
         self.create_subscription(Float32MultiArray, '/set_pid_params', self.pid_callback, 10)
@@ -40,7 +51,7 @@ class ESP32Bridge(Node):
         self.create_timer(1/40, self.status_callback)
 
     def cmd_vel_callback_L(self, msg):
-        linear = max(min(msg.linear.x, 0.3), -0.3)
+        linear = max(min(msg.linear.x, 0.4), -0.4)
         angular = max(min(msg.angular.z, 0.8), -0.8)
 
         try:
@@ -54,8 +65,8 @@ class ESP32Bridge(Node):
             self.get_logger().error(f"Failed to send velocity to ESP32: {e}")
 
     def cmd_vel_callback_F1(self, msg):
-        linear = max(min(msg.linear.x, 0.3), -0.3)
-        angular = max(min(msg.angular.z, 0.8), -0.8)
+        linear = max(min(msg.linear.x, 0.2), -0.2)
+        angular = max(min(msg.angular.z, 0.4), -0.4)
         self.send_velocity(linear, angular)
 
     def send_velocity(self, linear, angular):
@@ -96,6 +107,40 @@ class ESP32Bridge(Node):
             #self.get_logger().info(f"Sent PID to ESP32: kp={kp}, ki={ki}, kd={kd}, Response: {response.text}")
         except Exception as e:
             self.get_logger().error(f"Failed to send PID params to ESP32: {e}")
+
+
+
+
+    def pwm_callback(self, msg):
+        
+        data = list(msg.data)
+        initial_pr_L = self.def_initial_pr_L
+        initial_pl_L = self.def_initial_pl_L
+        #initial_pr_F2 = self.def_initial_pr_F2
+        #initial_pl_F2 = self.def_initial_pl_F2        
+        initial_pr_F1 = self.def_initial_pr_F1
+        initial_pl_F1 = self.def_initial_pl_F1     
+        try:
+            if len(data) >= 1:
+                initial_pr_L = data[0]
+                initial_pr_F1 = data[0]
+
+            if len(data) >= 2:
+                initial_pl_L = data[1]
+                initial_pl_F1 = data[1]
+
+            params_l = {'initial_pr_L': initial_pr_L,'initial_pl_L': initial_pl_L,}
+            params_F1 = {'initial_pr_F1': initial_pr_F1,'initial_pl_F1': initial_pl_F1,}
+
+            response_l = requests.get(f'http://{ESP32_IP_L}/set_pwm_L', params=params_l, timeout=1)
+            response_F1 = requests.get(f'http://{ESP32_IP_F1}/set_pwm_F1', params=params_F1, timeout=1)
+
+            #self.get_logger().info(f"Sent Pwm to ESP32: initial_pr_F2={initial_pr_F2}, initial_pl_F2={initial_pl_F2}, Response: {response.text}")
+        except Exception as e:
+            self.get_logger().error(f"Failed to send pwm params to ESP32: {e}")
+
+
+
 
     def status_callback(self):
         # This is "periodic callback" to GET /status and handle data
