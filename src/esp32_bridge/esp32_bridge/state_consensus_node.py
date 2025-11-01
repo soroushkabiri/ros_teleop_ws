@@ -1,6 +1,8 @@
 import rclpy
 from rclpy.node import Node
-from geometry_msgs.msg import Twist
+from geometry_msgs.msg import Twist 
+from std_msgs.msg import String , Bool
+
 from std_msgs.msg import Float32, Float32MultiArray
 import numpy as np
 import math
@@ -11,35 +13,87 @@ import time
 # Distributed Consensus Observer for Multi-Agent Systems With High-Order Integrator Dynamics
 
 
+
+def wrap_to_360(angle_deg):
+    """Wrap angle in degrees to [0, 360)."""
+    return angle_deg % 360.0
+
+def wrap_to_pm180(angle_deg):
+    """Wrap angle in degrees to [-180, 180)."""
+    return ((angle_deg + 180) % 360) - 180
+
+
 class ConsensusObserver(Node):
     def __init__(self):
         super().__init__('consensus_observer_followers')
 
+
+        # the variable to set how many followers i have.
+        self.followers_number = '2'  
+        # Subscribe to /followers_number to know when the process should begin
+        self.create_subscription(String, '/followers_number', self.followers_number_callback, 10)
+
         # Follower Names
-        self.follower_names = ['robot0_1',]
+        self.follower_names = ['robot0_1','robot1_0']
         self.num_followers = len(self.follower_names)
         self.step_consensus=10
         
         # Parameters 
-        self.alpha_v = 0.5/5
-        self.beta_v = 0.5/5
-        self.gamma_v = 2.0
-        self.alpha_yaw = 0.5/5
-        self.beta_yaw = 0.5/5
-        self.gamma_yaw = 2.0
+        #self.alpha_v = 0.5/5
+        self.alpha_v = 0.05725
+
+        #self.beta_v = 0.5/5
+        self.beta_v = 0.050436
+
+        #self.gamma_v = 2.0
+        self.gamma_v = 1.01
+
+        #self.alpha_yaw = 0.5/5
+        self.alpha_yaw = 0.28627
+
+        #self.beta_yaw = 0.5/5
+        self.beta_yaw = 0.25218
+
+        #self.gamma_yaw = 2.0
+        self.gamma_yaw = 1.01
+
 
         # Adjacency matrix (size NxN) and leader connectivity vector (size N)
         #self.a = np.array([[0, 1, 0],[1, 0, 1],[0, 1, 0]])
         #self.b = np.array([1, 0, 0])  # Only first follower connected to leader directly
-        self.a = np.array([[0]])
-        self.b = np.array([1])  # Only first follower connected to leader directly
+
+
+        # when i have only one follower
+        #self.a_1 = np.array([[0]])
+        #self.b_1 = np.array([1])  # Only first follower connected to leader directly
+
+        # when i have two follower
+        self.a_2 = np.array([[0,1],[1,0]])
+        self.b_2 = np.array([1,0])  # Only first follower connected to leader directly
 
         # Leader States 
-        self.v_leader = 0.0
-        self.yaw_leader = -180
+        self.v_leader_des = 0.0
+        self.yaw_leader = 0.0
 
         # dubscribe to actual speed and orientation of leader
-        self.create_subscription(Twist, '/robot0_0/cmd_vel', self.leader_vel_callback, 10) 
+        # temporary: i subscribe to cmd_vel from joy to directly use desired velocity of leader instead of
+        # actual velocity of leader in consensus calculation
+        #self.create_subscription(Twist, '/robot0_0/cmd_vel', self.leader_vel_callback, 10) 
+        #self.create_subscription(Twist, '/cmd_vel', self.leader_vel_callback, 10) 
+
+        # the variable to set the leader set its cmd_vel to fuzzy planner or joystick
+        self.joystick_override = False  
+
+        # Subscribe to /cmd_vel for leader
+        self.create_subscription(Twist, '/cmd_vel_fuzzy', self.cmd_vel_fuzzy_callback, 10)
+        self.create_subscription(Twist, '/cmd_vel_joy', self.cmd_vel_joy_callback, 10)
+        self.current_cmd_L = Twist()
+
+        # Subscribe to joystick override flag
+        self.create_subscription(
+            Bool, '/joystick_override', self.joystick_override_callback, 10
+        )
+
         self.create_subscription(Float32, '/robot0_0/yaw_deg', self.leader_yaw_callback, 10)
 
         # Initialize observation States 
@@ -76,11 +130,31 @@ class ConsensusObserver(Node):
         self.fig, self.ax = plt.subplots(figsize=(10,6))
 
         # Timer 
-        self.timer = self.create_timer(1/40, self.timer_callback)  # 40 Hz
+        self.timer = self.create_timer(1/15, self.timer_callback)  # 15 Hz
+
+    def followers_number_callback(self, msg):
+        self.followers_number = msg.data   # store the string ("1" or "2")
+
+    def joystick_override_callback(self, msg):
+        self.joystick_override = msg.data
+        self.get_logger().info(f"Joystick override set to: {self.joystick_override}")
 
 
-    def leader_vel_callback(self, msg):
-        self.v_leader = msg.linear.x
+    def cmd_vel_fuzzy_callback(self, msg):
+        if not self.joystick_override:   # only use fuzzy when joystick override is off
+            self.current_cmd_L = msg
+            self.v_leader_des = msg.linear.x
+
+    def cmd_vel_joy_callback(self, msg):
+        self.joystick_override = True    # enable joystick override
+        self.current_cmd_L = msg
+        self.v_leader_des = msg.linear.x
+
+    #def leader_vel_callback(self, msg):
+        # i changed to desired velociy of leader instead of actual speed in consensus calculation
+        #self.v_leader = msg.linear.x
+        #self.v_leader_des = msg.linear.x
+
 
     def leader_yaw_callback(self, msg):
         self.yaw_leader = msg.data
@@ -94,22 +168,28 @@ class ConsensusObserver(Node):
         return callback
 
     def timer_callback(self):
+        #if self.followers_number=="1":
+        #    follower_names=['robot0_1',]
+        #if self.followers_number=="2":
+        follower_names=['robot0_1','robot1_0']
+
+
         current_time = time.time() - self.start_time
 
         estimate_v=self.neighbor_estimates_v
         estimate_yaw=self.neighbor_estimates_yaw
 
         for k in range(self.step_consensus):
-            for i, follower in enumerate(self.follower_names):
+            for i, follower in enumerate(follower_names):
                 # Velocity consensus update
-                self.v_hat[i] = self.observer_update(i, estimate_v, self.v_leader, self.v_hat[i],'v')
+                self.v_hat[i] = self.observer_update(i, estimate_v, self.v_leader_des, self.v_hat[i],'v',follower)
                 # Yaw consensus update
-                self.yaw_hat[i] = self.observer_update(i, estimate_yaw, (self.yaw_leader/180)*math.pi, self.yaw_hat[i],'yaw')
+                self.yaw_hat[i] = self.observer_update(i, estimate_yaw, (self.yaw_leader/180)*math.pi, self.yaw_hat[i],'yaw',follower)
 
             estimate_v=self.v_hat
             estimate_yaw=self.yaw_hat
 
-        for i, follower in enumerate(self.follower_names):
+        for i, follower in enumerate(follower_names):
 
             # Sanity check for v_hat
             v_value = float(self.v_hat[i])
@@ -137,20 +217,37 @@ class ConsensusObserver(Node):
 #
 #        self.update_plot()
 
-    def observer_update(self, i, estimates, leader_value, x_hat_i,var_type):
+    def observer_update(self, i, estimates, leader_value, x_hat_i,var_type,follower):
         temp_sum = 0.0
-        for j, neighbor in enumerate(self.follower_names):
+
+        #if self.followers_number=="1":
+        #    follower_names=['robot0_1',]
+        #if self.followers_number=="2":
+        follower_names=['robot0_1','robot1_0']
+
+
+        for j, neighbor in enumerate(follower_names):
             if var_type=='yaw':
                 diff = math.atan2(math.sin(estimates[j] - x_hat_i), math.cos(estimates[j] - x_hat_i))
             else:
                 diff = estimates[j] - x_hat_i
-            temp_sum += self.a[i][j] * diff
+            #if self.followers_number=="1":
+            #    temp_sum += self.a_1[i][j] * diff
+
+            #if self.followers_number=="2":
+            temp_sum += self.a_2[i][j] * diff
+
             #temp_sum+=self.a[i][j]*(estimates[j]-x_hat_i)
         if var_type=='yaw':
             leader_diff = math.atan2(math.sin(leader_value - x_hat_i), math.cos(leader_value - x_hat_i))
         else:
             leader_diff = leader_value - x_hat_i
-        temp_sum+=self.b[i]*leader_diff
+                    
+        #if self.followers_number=="1":
+        #    temp_sum+=self.b_1[i]*leader_diff
+        #if self.followers_number=="2":
+        temp_sum+=self.b_2[i]*leader_diff
+
         if var_type=='v':
             alpha=self.alpha_v
             beta=self.beta_v

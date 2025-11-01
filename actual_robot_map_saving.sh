@@ -21,3 +21,12 @@ select-layout tiled \; attach
 
 
 
+# so important: i have to run this in terminal to save the 3d map and move it to another place
+
+# ros2 service call /rtabmap/rtabmap/backup std_srvs/srv/Empty "{}"
+
+# so important: for saving 2d map:
+
+#ros2 run nav2_map_server map_saver_cli -f ~/my_map --ros-args -r /map:=/rtabmap/map
+
+#mv ~/.ros/rtabmap.db ~/rtabmap_mymap.db

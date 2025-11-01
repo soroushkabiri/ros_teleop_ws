@@ -5,9 +5,12 @@ from geometry_msgs.msg import Twist
 from std_msgs.msg import Float32MultiArray
 import requests
 
-ESP32_IP_F2 = "192.168.1.119"  # Default IP
-ESP32_IP_F1 = "192.168.1.120"  # Default IP
-ESP32_IP_L = "192.168.1.121"  # Default IP
+#ESP32_IP_F2 = "192.168.1.119"  # Default IP
+#ESP32_IP_F1 = "192.168.1.120"  # Default IP
+#ESP32_IP_L = "192.168.1.121"  # Default IP
+ESP32_IP_L = "172.20.10.2"  # Default IP
+ESP32_IP_F1 = "172.20.10.3"  # Default IP
+ESP32_IP_F2 = "172.20.10.4"  # Default IP
 
 WHEEL_BASE = 0.4  # meters
 

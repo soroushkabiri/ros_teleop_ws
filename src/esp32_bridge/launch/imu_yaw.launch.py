@@ -26,7 +26,7 @@ def generate_launch_description():
 
     # Desired Velocity Publisher Node (delayed by 10 seconds total)
     des_publisher_node = TimerAction(
-        period=1.0,  # delay in seconds (IMU + consensus time)
+        period=1.0,  # delay in seconds  (IMU + consensus time)
         actions=[
             Node(
                 package='esp32_bridge',
@@ -34,7 +34,7 @@ def generate_launch_description():
                 name='initialize_des_publisher',
                 output='screen',
                 parameters=[{'kp_angular':1.0,
-                             'ki_angular': 0.02,
+                             'ki_angular': 0.04,
                              'max_integral_angular':10.0}]
             )
         ]

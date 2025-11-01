@@ -10,19 +10,24 @@ import numpy as np
 import matplotlib.pyplot as plt
 import time
 from sensor_msgs.msg import Joy
+from std_msgs.msg import String , Bool
 
 class XHatToCmdNode(Node):
     def __init__(self):
         super().__init__('x_hat_to_cmd_node')
 
+        # the variable to set how many followers i have.
+        self.followers_number = '2'  
+        # Subscribe to /followers_number to know when the process should begin
+        self.create_subscription(String, '/followers_number', self.followers_number_callback, 10)
 
         # --- Declare parameters with default values for angular velocity controller ---
-        self.declare_parameter('kp_angular', 1.0)
+        self.declare_parameter('kp_angular', 0.9)
         self.declare_parameter('ki_angular', 0.02)
         self.declare_parameter('max_integral_angular', 10.0)
 
         # List of robot names
-        self.robot_names = ['robot0_1',]
+        self.robot_names = ['robot0_1', 'robot1_0',]
         self.num_followers = len(self.robot_names)
         self.leader_current_orientation = 0.0
 
@@ -50,14 +55,19 @@ class XHatToCmdNode(Node):
 #        self.fig, self.ax = plt.subplots(figsize=(10,6))
         
         self.integral_error_F1 = 0.0
+        self.integral_error_F2 = 0.0
+
         self.last_time = time.time()
 
         # Timer to publish at fixed rate
-        self.create_timer(1/50, self.timer_callback)  # 50 Hz
+        self.create_timer(1/15, self.timer_callback)  # 15 Hz
 
         self.flip_orientation = False
         self.create_subscription(Joy, '/joy', self.joy_callback, 10)
 
+
+    def followers_number_callback(self, msg):
+        self.followers_number = msg.data   # store the string ("1" or "2")
 
     def joy_callback(self, msg):
         # use button triangle to rotate while still
@@ -90,10 +100,11 @@ class XHatToCmdNode(Node):
     def timer_callback(self):
         current_time = time.time() - self.start_time
 
+
         for name in self.robot_names:
             cmd_msg = Twist()
             cmd_msg.linear.x = self.v_hat_values[name]
-            cmd_msg.angular.z = self.calculate_angular_z(self.yaw_hat_values[name], self.current_orientation[name])
+            cmd_msg.angular.z = self.calculate_angular_z(self.yaw_hat_values[name], self.current_orientation[name],name)
             # All other fields remain zero
             self.cmd_publishers[name].publish(cmd_msg)
         
@@ -105,13 +116,16 @@ class XHatToCmdNode(Node):
 
 #        self.update_plot()
 
-    def calculate_angular_z(self, desired_orientation, current_orientation):
+    def calculate_angular_z(self, desired_orientation, current_orientation,name):
 
         current_orientation=(current_orientation/180)*math.pi
         
         # If joystick button pressed, flip target orientation by 180°
         if self.flip_orientation:
-            desired_orientation = (desired_orientation + math.pi) % (2 * math.pi)
+            if name=='robot0_1':
+                desired_orientation = (desired_orientation + math.pi) % (2 * math.pi)
+            if name=='robot1_0':
+                desired_orientation = (desired_orientation + math.pi/2) % (2 * math.pi)
 
 
 
@@ -136,22 +150,36 @@ class XHatToCmdNode(Node):
         threshold = 5 * math.pi / 180  
         
         if abs(diff) > threshold:
-            self.integral_error_F1 += diff * dt
 
-            # Prevent integral windup
-            self.integral_error_F1 = max(-max_integral, min(max_integral, self.integral_error_F1))
+            if name=='robot0_1':
+                self.integral_error_F1 += diff * dt
+                # Prevent integral windup
+                self.integral_error_F1 = max(-max_integral, min(max_integral, self.integral_error_F1))
 
-            self.get_logger().info(f"p_error: {kp*diff:.3f}, i_error: {ki*self.integral_error_F1:.3f}")
+                self.get_logger().info(f"p_error: {kp*diff:.3f}, i_error: {ki*self.integral_error_F1:.3f}")
 
-            angular_z = kp * diff + ki * self.integral_error_F1
-            # Limit max rotation speed
-            max_speed = 2.0
-            angular_z = max(-max_speed, min(max_speed, angular_z))
+                angular_z = kp * diff + ki * self.integral_error_F1
+                # Limit max rotation speed
+                max_speed = 2.0
+                angular_z = max(-max_speed, min(max_speed, angular_z))
+
+
+            if name=='robot1_0':
+                self.integral_error_F2 += diff * dt
+                # Prevent integral windup
+                self.integral_error_F2 = max(-max_integral, min(max_integral, self.integral_error_F2))
+
+                self.get_logger().info(f"p_error: {kp*diff:.3f}, i_error: {ki*self.integral_error_F2:.3f}")
+
+                angular_z = kp * diff + ki * self.integral_error_F2
+                # Limit max rotation speed
+                max_speed = 2.0
+                angular_z = max(-max_speed, min(max_speed, angular_z))
 
             return -angular_z
         else:
             # Small error → no angular velocity
-            self.get_logger().info("Orientation error < 5°, no rotation command.")
+            self.get_logger().info(f"{name} Orientation error < 5°, no rotation command.")
             return 0.0
 
 
