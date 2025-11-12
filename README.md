@@ -31,6 +31,6 @@ ros2 run esp32_bridge web_command
 after that this bash script should run:
 actual_robot_localising_and_teleop.sh
 
-<img width="706" height="562" alt="rtab" src="https://github.com/user-attachments/assets/30759fac-e545-4667-8c41-12c1e91baee4" />
+<img width="353" height="281" alt="rtab" src="https://github.com/user-attachments/assets/30759fac-e545-4667-8c41-12c1e91baee4" />
 
 
