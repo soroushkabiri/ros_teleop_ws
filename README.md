@@ -7,12 +7,12 @@ source install/setup.bash
 ## differential drive robots
 for this robot we use a robot with imu and encoders and an esp32 microcontroller that can connect with a rectangular pallete and move it via passive links:
 
-<img width="682" height="406" alt="diff_drive_real_robot" src="https://github.com/user-attachments/assets/6762cb2e-1928-416d-996b-be1ca8c37b60" />
+<img width="341" height="203" alt="diff_drive_real_robot" src="https://github.com/user-attachments/assets/6762cb2e-1928-416d-996b-be1ca8c37b60" />
 
 ## rectangular object
 this is the object that will be transport. this recrangular object has a kinect depth camera that uses it with rtabmap package to doing visual slam and visual odometry
 
-<img width="581" height="413" alt="rect_obj_real" src="https://github.com/user-attachments/assets/35f26d86-a5f2-4626-a83f-df752f1400ba" />
+<img width="290" height="206" alt="rect_obj_real" src="https://github.com/user-attachments/assets/35f26d86-a5f2-4626-a83f-df752f1400ba" />
 
 ## ros2 packages
 ### imu_pkg
