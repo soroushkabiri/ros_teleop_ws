@@ -9,6 +9,8 @@ from nav_msgs.msg import Path, Odometry
 from geometry_msgs.msg import PointStamped, Twist
 from rcl_interfaces.msg import SetParametersResult
 from std_msgs.msg import String , Bool
+from geometry_msgs.msg import PoseStamped
+import tf2_geometry_msgs
 
 
 def angle_wrap(a):
@@ -53,8 +55,12 @@ class FuzzyPathPlanner(Node):
         self.planner_type='fuzzy'
 
         # Subscriptions
-        self.create_subscription(Path, '/rtabmap/global_path', self.plan_callback, 10)
-        self.create_subscription(Odometry, '/rtabmap/odom', self.odom_callback, 10)
+        #self.create_subscription(Path, '/rtabmap/global_path', self.plan_callback, 10)
+        self.create_subscription(Path, '/global_path_dijkstra', self.plan_callback, 10)
+
+        #self.create_subscription(Odometry, '/rtabmap/odom', self.odom_callback, 10)
+        self.create_subscription(Odometry, '/map_localization', self.odom_callback, 10)
+
         self.create_subscription(PointStamped, '/closest_obstacle_in_range', self.closest_obstacle_callback, 10)
         self.create_subscription(Float32, '/robot0_0/yaw_deg', self.yaw_callback, 10)
 
@@ -73,8 +79,7 @@ class FuzzyPathPlanner(Node):
         self.waypoint_tolerance = waypoint_tolerance
         self.current_wp_index = 0
         self.waypoints = None  # Will be a numpy array of shape (N, 2)
-        self.ended_goal = True  # <--- NEW flag, start as ended (no goal yet)
-
+        self.ended_goal = True  #  start as ended (no goal yet)
 
         # get rect_obj position and velocity from odom topic 
         self.rect_obj_position=np.array([0,0]).reshape(1,2)
@@ -91,12 +96,10 @@ class FuzzyPathPlanner(Node):
         # Declare parameters with defaults
         self.declare_parameter("attractive_fuzzy_const",30.0)
         self.declare_parameter('repulsive_fuzzy_const',25.0)
-        
         self.declare_parameter("k_att", 5.0)
         self.declare_parameter("r_safe_min", 2.5)
         self.declare_parameter("k_rep_p", 20.0)
         self.declare_parameter("k_rep_v", 20.0)
-
 
         # Load parameter values
         self.attractive_fuzzy_const=self.get_parameter("attractive_fuzzy_const").value
@@ -111,7 +114,7 @@ class FuzzyPathPlanner(Node):
         self.add_on_set_parameters_callback(self.parameter_callback)
 
         self.max_v_leader=0.2
-        self.max_omega_leader=0.4
+        self.max_omega_leader=0.6
 
         # Constants for r_safe calculation (these are find experimentally and should be improved)
         self.kv = 2
@@ -143,8 +146,7 @@ class FuzzyPathPlanner(Node):
         self.waypoints = np.array(points)
         self.current_wp_index = 0
         self.current_way_point = self.waypoints[0].reshape(1, 2)
-        self.ended_goal = False   # 🚀 New goal started
-
+        self.ended_goal = False   #  New goal started
         self.get_logger().info(f"Received {total} poses → reduced to {self.waypoints.shape[0]} waypoints.")
 
     def follow_waypoints(self):
@@ -153,7 +155,7 @@ class FuzzyPathPlanner(Node):
             return
         if self.current_wp_index >= len(self.waypoints):
             self.get_logger().info("Reached final waypoint.")
-            self.ended_goal = True   # 🚩 Mark goal as finished
+            self.ended_goal = True   # Mark goal as finished
             #self.current_wp_index=0
             return
 
@@ -165,13 +167,9 @@ class FuzzyPathPlanner(Node):
         if dist <= self.waypoint_tolerance:
             self.current_wp_index += 1
 
-
     def fuzzy_planner(self):
         # Calculate attractive and repulsive force
-        if self.planner_type=='apf':
-            F_att = self.attractive_part_apf()
-            F_rep=self.repulsive_part_apf()
-        elif self.planner_type=='fuzzy':
+        if self.planner_type=='fuzzy':
             F_att=self.attractive_potential_fuzzy()
             F_rep=self.dynamic_repulsive_potential_fuzzy()
         # Total force
@@ -217,7 +215,6 @@ class FuzzyPathPlanner(Node):
         # Optional: brief debug
         self.get_logger().info(f"cmd_vel_fuzzy → v={twist.linear.x:.2f} m/s, ω={twist.angular.z:.2f} rad/s")
 
-
     def parameter_callback(self, params):
         """Handle runtime parameter updates; accept numeric values for these params."""
         ok = True
@@ -249,9 +246,6 @@ class FuzzyPathPlanner(Node):
             reason = f"Invalid (non-numeric) value for: {', '.join(bad_params)}"
             self.get_logger().warning(reason)
             return SetParametersResult(successful=False, reason=reason)
-        
-
-
         
     def odom_callback(self, msg: Odometry):
         """Update robot position and velocity from odometry."""
@@ -322,16 +316,8 @@ class FuzzyPathPlanner(Node):
             delta = np.arccos(np.clip(cos_delta, -1, 1))
 
             # Calculate variable safety radius. the safety radius is the measure that act as on off switch in repulsive force calculation. r_safe=r_min_safe+r_var_safe
-            #r_min_p=2.5
-            #r_min_p=1.25+rectangular_object_property["length"]*(math.sqrt(2)/2)
-
-            #r_min_p=0.8
-            #r_activate_p=2
-            r_min_p=1.0
+            r_min_p=0.9
             r_activate_p=1.2
-
-            #r_activate_p=6
-            #r_activate_p=5+rectangular_object_property["length"]*(math.sqrt(2)/2)
 
             d_2=0
             if dist_relative<=r_activate_p:
@@ -339,7 +325,7 @@ class FuzzyPathPlanner(Node):
                 a=0
                 b=0  
                 c_2=(r_activate_p-r_min_p)/(n_2-1)
-                R_2=[100,40,1,0.9,0.7,0.5,0.4,0.2,0.1,0]
+                R_2=[40,1,0.9,0.8,0.7,0.5,0.4,0.2,0.1,0]
                 a=0
                 b=0
 
@@ -355,16 +341,9 @@ class FuzzyPathPlanner(Node):
                         b=b+R_2[jj]*Rec_mem(2,r_min_p+jj*c_2,c_2,np.linalg.norm(dist_relative))
                 d_2=b/a
 
-            #r_min_v=3
-            #r_min_v=1.5+rectangular_object_property["length"]*(math.sqrt(2)/2)
-            #r_activate_v=7+rectangular_object_property["length"]*(math.sqrt(2)/2)
-            #r_min_v=0.8
-            #r_activate_v=3.5
             r_min_v=0.2
             r_activate_v=1.0
-
             
-            #r_activate_v=10
             d_1=0
             if dist_relative<=r_activate_v:
                 n_1=10
@@ -387,10 +366,7 @@ class FuzzyPathPlanner(Node):
                 b=0
                 n_4=7
                 n_5=7
-                #c_4=(3)/(n_4-1)
-                #c_4=(max_velocity_robot+max_velocity_obstacle)/(n_4-1)
                 c_4=(self.max_v_leader+0)/(n_4-1)
-
                 c_5=(1)/(n_5-1)
                 aa=np.linalg.norm(velocity_relative)
                 R_3=np.array([[0,0,0,0,0,0,0],[0+0.02,0.05,0.1,0.13,0.2,0.25,0.3],[0+0.02,0.07,0.15,0.17,0.3,0.35,0.5],[0+0.02,0.13,0.2,0.35,0.55,0.6,0.7],
@@ -428,34 +404,6 @@ class FuzzyPathPlanner(Node):
                                 a=a+Rec_mem(2,0+jj*c_4,c_4,aa)*Rec_mem(2,kk*c_5,c_5,cos_delta)
                                 b=b+R_3[jj][kk]*Rec_mem(2,0+jj*c_4,c_4,aa)*Rec_mem(2,kk*c_5,c_5,cos_delta)
                 d_1=b/a*d_1
-                #if i<num_obs-num_obstacle_static:
-                #    if np.linalg.norm(dist_relative)>1e-2:
-                #        F_rep_p +=(-p_relative / dist_relative)*d_2
-                #        #normal_vector = np.array([-p_relative[0,1], p_relative[0,0]])  # 2D version
-                #        # Normalize the normal vector
-                #        #unit_normal = normal_vector / np.linalg.norm(normal_vector)
-                #        #F_rep_p += unit_normal * d_2 * 0.3
-
-
-
-                #    if np.linalg.norm(velocity_relative)>1e-2:
-                #        F_rep_v +=(velocity_relative/np.linalg.norm(velocity_relative))*d_1
-
-
-                #        normal_vector = np.array([-velocity_relative[0,1], velocity_relative[0,0]])  # 2D version
-                #        # Normalize the normal vector
-                #        unit_normal = normal_vector / np.linalg.norm(normal_vector)
-                #        F_rep_v += unit_normal * d_1 * 0.1
-
-                #else:
-                #    F_rep_p +=(-p_relative / dist_relative)*d_2*1# we improvised this with a constant so effect of static obstacle be less
-                #    if np.linalg.norm(velocity_relative)>1e-2:
-                #        F_rep_v +=(velocity_relative/np.linalg.norm(velocity_relative))*d_1*1 # we improvised this with a constant so effect of static obstacle be less
-                #        normal_vector = np.array([-velocity_relative[0,1], velocity_relative[0,0]])  # 2D version
-                #        # Normalize the normal vector
-                #        unit_normal = normal_vector / np.linalg.norm(normal_vector)
-                #        F_rep_v += unit_normal * d_1 * 0.2
-
 
                 F_rep_p +=(-p_relative / dist_relative)*d_2*1# we improvised this with a constant so effect of static obstacle be less
                 if np.linalg.norm(velocity_relative)>1e-2:
@@ -464,18 +412,14 @@ class FuzzyPathPlanner(Node):
                     # Normalize the normal vector
                     unit_normal = normal_vector / np.linalg.norm(normal_vector)
                     F_rep_v += unit_normal * d_1 * 0.2
-        #F_t =40*F_rep_p+10*F_rep_v
-        #F_t =25*F_rep_p+16*F_rep_v
-        #F_t =5*F_rep_p+0*F_rep_v
-        F_t =self.repulsive_fuzzy_const*F_rep_p+0*F_rep_v
 
+        F_t =self.repulsive_fuzzy_const*F_rep_p+0*F_rep_v
 
         return F_t
 
-
 def main(args=None):
     rclpy.init(args=args)
-    node = FuzzyPathPlanner(num_waypoints=4, waypoint_tolerance=0.3)  
+    node = FuzzyPathPlanner(num_waypoints=10, waypoint_tolerance=0.3)  
     rclpy.spin(node)
     node.destroy_node()
     rclpy.shutdown()

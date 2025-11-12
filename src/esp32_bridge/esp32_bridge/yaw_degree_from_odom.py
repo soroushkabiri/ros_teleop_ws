@@ -21,6 +21,7 @@ class RectOdomYaw(Node):
         )
         # Subscriber to /rtabmap/odom
         self.create_subscription(Odometry, '/rtabmap/odom', self.odom_callback, qos)
+        
 
         # Publisher for yaw in degrees
         self.yaw_pub = self.create_publisher(Float32, '/rect_obj_odom_yaw', 10)

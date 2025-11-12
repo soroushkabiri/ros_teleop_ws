@@ -13,12 +13,9 @@ class BagRecorderNode(Node):
         self.topics = [
             #"/cmd_vel_fuzzy",
             "/cmd_vel_joy",
-
             "/robot0_1/v_hat", "/robot1_0/v_hat",
             "/robot0_1/yaw_hat", "/robot1_0/yaw_hat",
-             "/robot0_0/yaw_deg",
-           
-        ]
+             "/robot0_0/yaw_deg",]
 
         # Create a custom folder name with timestamp
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -50,3 +47,6 @@ def main(args=None):
 
 if __name__ == "__main__":
     main()
+
+
+

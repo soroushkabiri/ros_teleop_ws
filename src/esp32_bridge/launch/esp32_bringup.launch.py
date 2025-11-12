@@ -31,11 +31,11 @@ def generate_launch_description():
         parameters=[{
             'axis_linear': {'x': 1},
             'scale_linear': {'x': 0.1},
-            'scale_linear_turbo': {'x': 0.25},
+            'scale_linear_turbo': {'x': 0.2},
 
             'axis_angular': {'yaw': 0},
-            'scale_angular': {'yaw': 0.2},
-            'scale_angular_turbo': {'yaw': 0.5},
+            'scale_angular': {'yaw': 0.3},
+            'scale_angular_turbo': {'yaw': 0.6},
 
             'enable_button': 4,
             'enable_turbo_button': 5,

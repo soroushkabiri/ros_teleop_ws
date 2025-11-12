@@ -6,10 +6,8 @@ set -e
 # 2)run the node from comp_pkg that give timestamp to kinrct_ros2 node and rename them
 # 3) launch the depth to laser package to make kinect data to lidar data
 # 4) launch kinect ros2 driver 
-# 5) run rtab_map odom to get osometry data from kinect
-# 6) get imu data from arduino via serial
-# 7) using robot localization package to fuse imu data and visual odometry from rtab map
-# 8) make a map with async_mapper_online
+# 5) mapping with rtabmap
+
 
 
 # Define directory variables
@@ -27,7 +25,7 @@ split-window -h "sleep 17; source $dir_rtabmap; ros2 launch rtabmap_launch rtabm
 select-layout tiled \; attach
 
 
-# so important: i have to run this in terminal to save the 3d map and move it to another place
+# so important: we have to run this in terminal to save the 3d map and move it to another place
 
 # ros2 service call /rtabmap/rtabmap/backup std_srvs/srv/Empty "{}"
 

@@ -43,6 +43,7 @@ setup(
                         'bag_plotter = esp32_bridge.bag_plotter:main',
                         'map_data = esp32_bridge.map_data:main',
                         'waypoint_planner = esp32_bridge.waypoint_planner:main',
+                        'map_localization_node = esp32_bridge.map_localization_node:main',
 
         ],
     },

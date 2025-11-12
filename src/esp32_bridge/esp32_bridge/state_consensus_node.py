@@ -2,7 +2,6 @@ import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Twist 
 from std_msgs.msg import String , Bool
-
 from std_msgs.msg import Float32, Float32MultiArray
 import numpy as np
 import math
@@ -11,7 +10,6 @@ import time
 
 # the observer design is based on this paper:
 # Distributed Consensus Observer for Multi-Agent Systems With High-Order Integrator Dynamics
-
 
 
 def wrap_to_360(angle_deg):

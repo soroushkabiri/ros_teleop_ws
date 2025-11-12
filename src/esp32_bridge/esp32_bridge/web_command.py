@@ -35,7 +35,8 @@ class WebCommandNode(Node):
             reliability=QoSReliabilityPolicy.RELIABLE
         )
         
-        self.goal_publisher_ = self.create_publisher(PoseStamped, '/rtabmap/goal', qos_profile)
+        #self.goal_publisher_ = self.create_publisher(PoseStamped, '/rtabmap/goal', qos_profile)
+        self.goal_publisher_ = self.create_publisher(PoseStamped, '/dijkstra_goal', 10)
 
         # store current states
         self.current_command = "pause"            # default
@@ -80,16 +81,7 @@ class WebCommandNode(Node):
         followers_msg.data = self.followers_number
         self.followers_pub_.publish(followers_msg)
 
-        # Re-publish the last goal if it exists (this can change and publish the goal only once)
-        #if self.last_goal is not None:
-        #    x, y = self.last_goal
-        ##    goal_msg = PoseStamped()
-        #    goal_msg.header.frame_id = "map"
-        #    goal_msg.header.stamp = self.get_clock().now().to_msg()
-        #    goal_msg.pose.position.x = x
-        #    goal_msg.pose.position.y = y
-        #    goal_msg.pose.orientation.w = 1.0
-        #    self.goal_publisher_.publish(goal_msg)
+
         self.get_logger().info(
             f"Publishing: {msg.data}, YawCalib: {yaw_msg.data}, Override: {override_msg.data}, "
             f"Followers: {self.followers_number}, Goal: {self.last_goal}")
@@ -111,19 +103,6 @@ class WebCommandNode(Node):
         self.last_goal = (x, y)
 
 
-
-
-    #def publish_goal(self, x: float, y: float):
-     #   """Publish a PoseStamped goal to /rtabmap/goal"""
-      #  msg = PoseStamped()
-      #  msg.header.frame_id = "map"
-      #  msg.header.stamp = self.get_clock().now().to_msg()
-      #  msg.pose.position.x = x
-      #  msg.pose.position.y = y
-      #  msg.pose.orientation.w = 1.0
-      #  self.goal_publisher_.publish(msg)
-      #  self.get_logger().info(f"Published goal: x={x}, y={y}")
-      #  self.last_goal = (x, y)   # store after publishing
 
     def setup_routes(self):
         @self.app.get("/", response_class=HTMLResponse)

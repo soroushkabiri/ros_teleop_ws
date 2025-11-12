@@ -11,9 +11,7 @@ def generate_launch_description():
             package='esp32_bridge',
             executable='esp32_pwm_test',
             name='esp32_bridge',
-            output='screen',
-        )
+            output='screen',)
 
     return LaunchDescription([
-        esp32_teleop,
-    ])
+        esp32_teleop,])

@@ -26,11 +26,14 @@ class ClosestObstacleFinder(Node):
             10)
 
         # Subscribe to RTAB-Map odometry
-        self.create_subscription(
-            Odometry,
-            '/rtabmap/odom',
-            self.odom_callback,
-            10)
+        #self.create_subscription(
+        #    Odometry,
+        #    '/rtabmap/odom',
+        #    self.odom_callback,
+        #    10)
+        
+        # Subscribe to RTAB-Map odometry
+        self.create_subscription(Odometry,'/map_localization',self.odom_callback,10)
 
         # Timer to check closest obstacle every 0.1s
         self.timer = self.create_timer(0.1, self.check_closest_obstacle)

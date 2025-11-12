@@ -24,6 +24,8 @@ class XHatToCmdNode(Node):
         # --- Declare parameters with default values for angular velocity controller ---
         self.declare_parameter('kp_angular', 0.9)
         self.declare_parameter('ki_angular', 0.02)
+        #self.declare_parameter('ki_angular', 1.0)
+
         self.declare_parameter('max_integral_angular', 10.0)
 
         # List of robot names
