@@ -47,7 +47,7 @@ To save the generated map:
 actual_robot_map_saving.sh
 
 ### transporting the object:
-1)Start the web command node so that the user can define robot goals:
+Start the web command node so that the user can define robot goals:
 
 ros2 run esp32_bridge web_command
 
